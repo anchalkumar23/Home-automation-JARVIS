@@ -1,0 +1,11 @@
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+.next/
+*.db
+.env
+.env.local
+
+# Runtime/generated data — uploads, TV pairing tokens, etc. Nothing here is source.
+backend/data/

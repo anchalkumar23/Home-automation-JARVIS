@@ -1,0 +1,13 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+tzdata>=2024.1
+pytest==8.3.4
+python-multipart==0.0.32
+google-auth>=2.35.0
+google-auth-oauthlib>=1.2.1
+beautifulsoup4>=4.12.3
+pypdf>=5.1.0
+samsungtvws>=2.7.0
+pywebostv>=0.8.9
+cryptography>=43.0.0
