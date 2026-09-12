@@ -9,3 +9,6 @@ __pycache__/
 
 # Runtime/generated data — uploads, TV pairing tokens, etc. Nothing here is source.
 backend/data/
+
+# Reference material, not project content.
+*.pdf
