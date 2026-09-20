@@ -165,3 +165,31 @@ def test_recent_feedback_summary_respects_limit(tmp_path):
     summary = store.recent_feedback_summary("default", limit=2)
 
     assert len(summary) == 2
+
+
+def test_create_session_returns_a_valid_session(tmp_path):
+    store = MemoryStore(tmp_path / "test.db")
+    token = store.create_session()
+
+    assert store.session_valid(token) is True
+
+
+def test_session_valid_rejects_unknown_token(tmp_path):
+    store = MemoryStore(tmp_path / "test.db")
+    assert store.session_valid("not-a-real-token") is False
+
+
+def test_session_valid_rejects_expired_session(tmp_path):
+    store = MemoryStore(tmp_path / "test.db")
+    token = store.create_session(ttl_days=-1)
+
+    assert store.session_valid(token) is False
+
+
+def test_delete_session_invalidates_it(tmp_path):
+    store = MemoryStore(tmp_path / "test.db")
+    token = store.create_session()
+
+    store.delete_session(token)
+
+    assert store.session_valid(token) is False

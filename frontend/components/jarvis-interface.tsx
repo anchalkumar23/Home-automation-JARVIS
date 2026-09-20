@@ -1,9 +1,10 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { AudioLines, BellRing, Keyboard, Mail, Mic, Power, SendHorizonal, Volume2, VolumeX } from "lucide-react"
+import { AudioLines, BellRing, Keyboard, LogOut, Mail, Mic, Power, SendHorizonal, Volume2, VolumeX } from "lucide-react"
 import { ArcReactor } from "@/components/arc-reactor"
 import { ClockPanel, StatusPanel, SystemPanel } from "@/components/hud-panels"
+import { LoginScreen } from "@/components/login-screen"
 import {
   BusinessReportCard,
   CalendarEventDeleteConfirm,
@@ -23,7 +24,7 @@ import {
   TypewriterText,
 } from "@/components/message-cards"
 import { VoiceVisualizer } from "@/components/voice-visualizer"
-import { apiHeaders } from "@/lib/api"
+import { checkAuthStatus, login as loginRequest, logout as logoutRequest } from "@/lib/api"
 import { useSpeech } from "@/lib/use-speech"
 import { useWakeWord } from "@/lib/use-wake-word"
 import { useTaskReminders } from "@/lib/use-task-reminders"
@@ -65,7 +66,9 @@ interface Message {
 
 /* ── Constants ──────────────────────────────────────────────────────────── */
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_JARVIS_BACKEND ?? "http://127.0.0.1:8000"
+// "localhost" (not 127.0.0.1) to match the hostname this page is served from —
+// session cookies are SameSite=Lax, which is scoped by hostname, not just port.
+const BACKEND_URL = process.env.NEXT_PUBLIC_JARVIS_BACKEND ?? "http://localhost:8000"
 
 const SOURCE_TOOL_NAMES = new Set([
   "web_search",
@@ -107,12 +110,12 @@ async function sendToBackend(
 ): Promise<BackendResponse> {
   const response = await fetch(`${BACKEND_URL}/api/chat`, {
     method: "POST",
-    headers: apiHeaders({ "Content-Type": "application/json" }),
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       message,
       history: history.map((h) => ({ role: h.role, content: h.content })),
       provider: "auto",
-      user_id: "default",
     }),
   })
   if (!response.ok) {
@@ -156,6 +159,7 @@ export function JarvisInterface() {
   const [sendingEmail, setSendingEmail] = useState(false)
   const [savingCalendarEvent, setSavingCalendarEvent] = useState(false)
   const [deletingCalendarEvent, setDeletingCalendarEvent] = useState(false)
+  const [authenticated, setAuthenticated] = useState<boolean | null>(null)
 
   const {
     supported,
@@ -182,6 +186,11 @@ export function JarvisInterface() {
   const messagesRef = useRef<Message[]>([])
   messagesRef.current = messages
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  // Check login status on mount
+  useEffect(() => {
+    checkAuthStatus(BACKEND_URL).then(setAuthenticated)
+  }, [])
 
   // Boot animation
   useEffect(() => {
@@ -211,7 +220,7 @@ export function JarvisInterface() {
     let cancelled = false
     async function checkGmail() {
       try {
-        const res = await fetch(`${BACKEND_URL}/api/gmail/status`, { headers: apiHeaders() })
+        const res = await fetch(`${BACKEND_URL}/api/gmail/status`, { credentials: "include" })
         if (!res.ok) return
         const data = await res.json()
         if (!cancelled) {
@@ -324,7 +333,7 @@ export function JarvisInterface() {
   // ── Gmail connect + send handlers ───────────────────────────────────
   const handleConnectGmail = useCallback(async () => {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/gmail/auth-url`, { headers: apiHeaders() })
+      const res = await fetch(`${BACKEND_URL}/api/gmail/auth-url`, { credentials: "include" })
       if (!res.ok) throw new Error()
       const data = await res.json()
       if (data.url) window.open(data.url, "_blank", "noopener,noreferrer")
@@ -345,7 +354,8 @@ export function JarvisInterface() {
       try {
         const res = await fetch(`${BACKEND_URL}/api/gmail/send`, {
           method: "POST",
-          headers: apiHeaders({ "Content-Type": "application/json" }),
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ to, subject, body }),
         })
         if (!res.ok) {
@@ -384,7 +394,8 @@ export function JarvisInterface() {
           eventId ? `${BACKEND_URL}/api/calendar/events/${eventId}` : `${BACKEND_URL}/api/calendar/events`,
           {
             method: eventId ? "PATCH" : "POST",
-            headers: apiHeaders({ "Content-Type": "application/json" }),
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               summary,
               start,
@@ -418,7 +429,7 @@ export function JarvisInterface() {
       try {
         const res = await fetch(`${BACKEND_URL}/api/calendar/events/${eventId}`, {
           method: "DELETE",
-          headers: apiHeaders(),
+          credentials: "include",
         })
         if (!res.ok) {
           const data = await res.json().catch(() => ({}))
@@ -572,6 +583,13 @@ export function JarvisInterface() {
     return typeof url === "string" ? url : null
   }
 
+  if (authenticated === false) {
+    return <LoginScreen backendUrl={BACKEND_URL} onSuccess={() => setAuthenticated(true)} />
+  }
+  if (authenticated === null) {
+    return <main className="h-screen bg-background" />
+  }
+
   return (
     <main className="hud-grid relative h-screen overflow-y-auto bg-background text-foreground lg:overflow-hidden">
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 hud-vignette" />
@@ -656,6 +674,18 @@ export function JarvisInterface() {
                 <Volume2 className="h-3.5 w-3.5" aria-hidden="true" />
               )}
               <span className="hidden sm:inline">{muted ? "Muted" : "Voice"}</span>
+            </button>
+
+            <button
+              id="logout-button"
+              onClick={() => {
+                logoutRequest(BACKEND_URL).then(() => setAuthenticated(false))
+              }}
+              className="flex h-9 items-center gap-2 rounded-md border border-border bg-card/35 px-3 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:text-foreground"
+              aria-label="Log out"
+            >
+              <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
+              <span className="hidden sm:inline">Logout</span>
             </button>
 
             {wakeWordSupported && (

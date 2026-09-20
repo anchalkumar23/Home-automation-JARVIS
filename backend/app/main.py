@@ -7,13 +7,14 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
+from app.routers.auth import router as auth_router
 from app.routers.calendar import router as calendar_router
 from app.routers.chat import router as chat_router
 from app.routers.gmail import router as gmail_router
 from app.routers.tasks import router as tasks_router
 from app.routers.transcribe import router as transcribe_router
 from app.routers.uploads import router as uploads_router
-from app.security import require_api_key
+from app.security import require_session
 from app.services.memory import MemoryStore
 from app.services.tool_runner import ToolRunner
 
@@ -38,11 +39,12 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    gate = [Depends(require_api_key)]
+    app.include_router(auth_router)
+    gate = [Depends(require_session)]
     app.include_router(chat_router, dependencies=gate)
     app.include_router(transcribe_router, dependencies=gate)
-    # gmail_router is gated per-route inside gmail.py — /callback is a browser
-    # redirect target from Google itself and can't carry a custom header.
+    # gmail_router is gated per-route inside gmail.py (all four routes require
+    # a session — a top-level browser navigation still carries the cookie).
     app.include_router(gmail_router)
     app.include_router(calendar_router, dependencies=gate)
     app.include_router(tasks_router, dependencies=gate)

@@ -16,13 +16,13 @@ from app.schemas import (
     SendEmailRequest,
     SendEmailResponse,
 )
-from app.security import require_api_key
+from app.security import require_session
 from app.services import google_auth
 
 router = APIRouter(prefix="/api/gmail", tags=["gmail"])
 
 
-@router.get("/auth-url", response_model=GmailAuthUrlResponse, dependencies=[Depends(require_api_key)])
+@router.get("/auth-url", response_model=GmailAuthUrlResponse, dependencies=[Depends(require_session)])
 async def auth_url(request: Request) -> GmailAuthUrlResponse:
     settings = request.app.state.settings
     if not settings.google_client_id or not settings.google_client_secret:
@@ -30,7 +30,7 @@ async def auth_url(request: Request) -> GmailAuthUrlResponse:
     return GmailAuthUrlResponse(url=google_auth.build_auth_url(settings))
 
 
-@router.get("/callback", response_class=HTMLResponse)
+@router.get("/callback", response_class=HTMLResponse, dependencies=[Depends(require_session)])
 async def callback(request: Request, code: str | None = None, error: str | None = None) -> HTMLResponse:
     # error/code are query params reflected into HTML below — escape them, since
     # this endpoint is a browser-navigable URL an attacker can craft and send.
@@ -52,7 +52,7 @@ async def callback(request: Request, code: str | None = None, error: str | None 
     return HTMLResponse(f"<h1>Gmail connected{label}</h1><p>You can close this tab and return to JARVIS.</p>")
 
 
-@router.get("/status", response_model=GmailStatusResponse, dependencies=[Depends(require_api_key)])
+@router.get("/status", response_model=GmailStatusResponse, dependencies=[Depends(require_session)])
 async def status(request: Request) -> GmailStatusResponse:
     store = request.app.state.memory_store
     stored = store.get_google_tokens()
@@ -61,7 +61,7 @@ async def status(request: Request) -> GmailStatusResponse:
     return GmailStatusResponse(connected=True, email=stored.get("email"))
 
 
-@router.post("/send", response_model=SendEmailResponse, dependencies=[Depends(require_api_key)])
+@router.post("/send", response_model=SendEmailResponse, dependencies=[Depends(require_session)])
 async def send(payload: SendEmailRequest, request: Request) -> SendEmailResponse:
     to = payload.to.strip()
     if not to:

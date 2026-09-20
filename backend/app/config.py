@@ -8,6 +8,10 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = BASE_DIR / "data"
 ENV_FILE = BASE_DIR / ".env"
 
+# JARVIS is single-user — there's no per-request identity to trust, so every
+# route uses this fixed id rather than accepting one from the client.
+DEFAULT_USER_ID = "default"
+
 
 def load_dotenv() -> None:
     if not ENV_FILE.exists():
@@ -48,8 +52,9 @@ class Settings:
     samsung_tv_mac: str
     lg_tv_ip: str
     lg_tv_mac: str
-    api_key: str
+    password_hash: str
     token_encryption_key: str
+    cookie_secure: bool
     database_path: Path
 
 
@@ -81,7 +86,10 @@ def get_settings() -> Settings:
         samsung_tv_mac=os.getenv("SAMSUNG_TV_MAC", ""),
         lg_tv_ip=os.getenv("LG_TV_IP", ""),
         lg_tv_mac=os.getenv("LG_TV_MAC", ""),
-        api_key=os.getenv("JARVIS_API_KEY", ""),
+        password_hash=os.getenv("JARVIS_PASSWORD_HASH", ""),
         token_encryption_key=os.getenv("TOKEN_ENCRYPTION_KEY", ""),
+        # Secure cookies require HTTPS — off by default for local http dev,
+        # set JARVIS_ENV=production once deployed behind HTTPS (Hostinger/Tailscale).
+        cookie_secure=os.getenv("JARVIS_ENV", "development") == "production",
         database_path=DATA_DIR / "jarvis.db",
     )

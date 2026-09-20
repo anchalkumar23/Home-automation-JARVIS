@@ -1,12 +1,38 @@
-/**
- * Interim shared-secret gate for the backend API, ahead of proper auth (see
- * docs/superpowers/specs/2026-09-05-interim-auth-patches.md). The key is
- * necessarily visible in the browser bundle since these calls run client-side
- * — it stops anonymous internet scanners, not a targeted attacker who has
- * already loaded the site. Real per-user auth replaces this later.
- */
-export const JARVIS_API_KEY = process.env.NEXT_PUBLIC_JARVIS_API_KEY ?? ""
+/** Login/logout/status calls against the session-cookie-based auth backend. */
 
-export function apiHeaders(extra?: Record<string, string>): Record<string, string> {
-  return { "X-Jarvis-Key": JARVIS_API_KEY, ...extra }
+export async function checkAuthStatus(backendUrl: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${backendUrl}/api/auth/status`, { credentials: "include" })
+    if (!res.ok) return false
+    const data = await res.json()
+    return Boolean(data.authenticated)
+  } catch {
+    return false
+  }
+}
+
+export async function login(backendUrl: string, password: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${backendUrl}/api/auth/login`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      return { ok: false, error: data.detail || "Login failed." }
+    }
+    return { ok: true }
+  } catch {
+    return { ok: false, error: "Couldn't reach the backend." }
+  }
+}
+
+export async function logout(backendUrl: string): Promise<void> {
+  try {
+    await fetch(`${backendUrl}/api/auth/logout`, { method: "POST", credentials: "include" })
+  } catch {
+    // best-effort — the cookie will just expire on its own if this fails
+  }
 }

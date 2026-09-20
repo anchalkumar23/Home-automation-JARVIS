@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react"
 import { CalendarClock, Check, ClipboardCopy, Download, FileText, Loader2, Mail, Maximize2, UploadCloud, X } from "lucide-react"
-import { JARVIS_API_KEY } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
 /* ── Types ──────────────────────────────────────────────────────────────── */
@@ -680,7 +679,7 @@ export function FileUploadCard({
 
     const xhr = new XMLHttpRequest()
     xhr.open("POST", `${backendUrl}/api/uploads`)
-    xhr.setRequestHeader("X-Jarvis-Key", JARVIS_API_KEY)
+    xhr.withCredentials = true
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) {
         setProgress(Math.round((event.loaded / event.total) * 100))

@@ -14,7 +14,6 @@ class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=8000)
     history: list[ChatMessage] = Field(default_factory=list)
     provider: Literal["auto", "openai", "groq", "local"] = "auto"
-    user_id: str = Field(default="default", min_length=1, max_length=80)
 
 
 class ToolResult(BaseModel):

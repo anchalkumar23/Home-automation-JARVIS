@@ -1,7 +1,6 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { apiHeaders } from "@/lib/api"
 import { startLevelMonitoring, type LevelMonitor } from "@/lib/audio-level"
 
 export interface VoiceOption {
@@ -24,14 +23,14 @@ function scoreVoice(v: SpeechSynthesisVoice): number {
   return s
 }
 
-const TRANSCRIBE_URL = `${process.env.NEXT_PUBLIC_JARVIS_BACKEND ?? "http://127.0.0.1:8000"}/api/transcribe`
+const TRANSCRIBE_URL = `${process.env.NEXT_PUBLIC_JARVIS_BACKEND ?? "http://localhost:8000"}/api/transcribe`
 
 async function transcribeAudio(blob: Blob, mimeType: string): Promise<string> {
   const extension = mimeType.includes("ogg") ? "ogg" : mimeType.includes("mp4") ? "mp4" : "webm"
   const formData = new FormData()
   formData.append("audio", blob, `recording.${extension}`)
 
-  const response = await fetch(TRANSCRIBE_URL, { method: "POST", headers: apiHeaders(), body: formData })
+  const response = await fetch(TRANSCRIBE_URL, { method: "POST", credentials: "include", body: formData })
 
   if (!response.ok) {
     let detail = "Transcription failed."

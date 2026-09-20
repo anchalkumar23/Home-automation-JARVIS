@@ -9,7 +9,7 @@ import urllib.request
 from typing import Any
 
 from app.ai.tools import TOOL_DEFINITIONS
-from app.config import Settings
+from app.config import DEFAULT_USER_ID, Settings
 from app.schemas import ChatMessage, ChatRequest, ChatResponse, ToolResult
 from app.services.memory import MemoryStore
 from app.services.tool_runner import ToolRunner
@@ -254,7 +254,7 @@ def run_remote_agent(
     provider: str,
     model: str,
 ) -> ChatResponse:
-    messages = build_messages(request.history, request.message, runner.memory_store, request.user_id)
+    messages = build_messages(request.history, request.message, runner.memory_store, DEFAULT_USER_ID)
     tool_results: list[ToolResult] = []
 
     for _ in range(5):
@@ -283,7 +283,7 @@ def run_remote_agent(
             function = tool_call.get("function") or {}
             name = str(function.get("name") or "")
             arguments = parse_tool_arguments(function.get("arguments"))
-            result = runner.run(name, arguments, request.user_id)
+            result = runner.run(name, arguments, DEFAULT_USER_ID)
             tool_results.append(result)
             messages.append(
                 {
@@ -508,7 +508,7 @@ def run_local_agent(request: ChatRequest, runner: ToolRunner) -> ChatResponse:
     all_tool_results: list[ToolResult] = []
 
     for cmd in commands:
-        answer, results = run_single_local_command(cmd, runner, request.user_id)
+        answer, results = run_single_local_command(cmd, runner, DEFAULT_USER_ID)
         if answer:
             all_answers.append(answer)
         all_tool_results.extend(results)

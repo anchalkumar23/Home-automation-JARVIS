@@ -26,8 +26,9 @@ def _fake_settings() -> Settings:
         samsung_tv_mac="",
         lg_tv_ip="",
         lg_tv_mac="",
-        api_key="",
+        password_hash="",
         token_encryption_key="",
+        cookie_secure=False,
         database_path=Path("unused.db"),
     )
 

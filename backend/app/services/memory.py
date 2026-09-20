@@ -1,6 +1,8 @@
 ﻿from __future__ import annotations
 
+import secrets
 import sqlite3
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -70,6 +72,15 @@ class MemoryStore:
                     topic TEXT NOT NULL,
                     outcome TEXT NOT NULL,
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS sessions (
+                    token TEXT PRIMARY KEY,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    expires_at TEXT NOT NULL
                 )
                 """
             )
@@ -285,3 +296,32 @@ class MemoryStore:
             )
             connection.commit()
         return cursor.rowcount > 0
+
+    def create_session(self, ttl_days: int = 30) -> str:
+        token = secrets.token_urlsafe(32)
+        now = datetime.now(timezone.utc)
+        expires_at = now + timedelta(days=ttl_days)
+        with self._connect() as connection:
+            # Opportunistic cleanup — no scheduler in this project, so piggyback
+            # on an already-open connection instead of a separate cron job.
+            connection.execute("DELETE FROM sessions WHERE expires_at < ?", (now.isoformat(),))
+            connection.execute(
+                "INSERT INTO sessions (token, expires_at) VALUES (?, ?)",
+                (token, expires_at.isoformat()),
+            )
+            connection.commit()
+        return token
+
+    def session_valid(self, token: str) -> bool:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT expires_at FROM sessions WHERE token = ?", (token,)
+            ).fetchone()
+        if not row:
+            return False
+        return datetime.fromisoformat(row["expires_at"]) > datetime.now(timezone.utc)
+
+    def delete_session(self, token: str) -> None:
+        with self._connect() as connection:
+            connection.execute("DELETE FROM sessions WHERE token = ?", (token,))
+            connection.commit()

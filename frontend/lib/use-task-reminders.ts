@@ -1,7 +1,6 @@
 "use client"
 
 import { useCallback, useRef, useState } from "react"
-import { apiHeaders } from "@/lib/api"
 
 const POLL_INTERVAL_MS = 60_000
 
@@ -19,7 +18,7 @@ export function useTaskReminders(backendUrl: string) {
 
   const checkDueTasks = useCallback(async () => {
     try {
-      const res = await fetch(`${backendUrl}/api/tasks?include_done=false`, { headers: apiHeaders() })
+      const res = await fetch(`${backendUrl}/api/tasks?include_done=false`, { credentials: "include" })
       if (!res.ok) return
       const data = await res.json()
       const tasks: ReminderTask[] = data.tasks || []
